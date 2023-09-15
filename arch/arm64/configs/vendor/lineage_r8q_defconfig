@@ -6053,7 +6053,6 @@ CONFIG_SENSORS_GW9558X=y
 # samsung Performace manager
 #
 CONFIG_PERF_MGR=y
-CONFIG_KPERFMON=y
 
 #
 # KUnit support
