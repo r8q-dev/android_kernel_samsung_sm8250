@@ -551,13 +551,6 @@ struct sched_entity {
 	struct cfs_rq			*my_q;
 #endif
 
-#ifdef CONFIG_FAST_TRACK
-	int ftt_mark;
-	int ftt_enqueue_time;
-	atomic64_t ftt_dyn_mark;
-	u64 ftt_vrt_delta;
-#endif
-
 #ifdef CONFIG_SMP
 	/*
 	 * Per entity load average tracking.
@@ -1482,10 +1475,6 @@ struct task_struct {
 #ifdef CONFIG_SECURITY
 	/* Used by LSM modules for access restriction: */
 	void				*security;
-#endif
-#ifdef CONFIG_PERF_MGR
-	int drawing_flag;
-	int drawing_mig_boost;
 #endif
 	/*
 	 * New fields for task_struct should be added above here, so that
