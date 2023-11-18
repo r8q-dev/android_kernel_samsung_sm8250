@@ -794,10 +794,13 @@ ifdef CONFIG_INIT_STACK_ALL
 KBUILD_CFLAGS  += -ftrivial-auto-var-init=pattern
 endif
 
-# Workaround for GCC versions < 5.0
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61801
-ifdef CONFIG_CC_IS_GCC
-KBUILD_CFLAGS   += $(call cc-ifversion, -lt, 0500, $(call cc-option, -fno-var-tracking-assignments))
+# Initialize all stack variables with a zero value.
+ifdef CONFIG_INIT_STACK_ALL_ZERO
+KBUILD_CFLAGS	+= -ftrivial-auto-var-init=zero
+ifdef CONFIG_CC_HAS_AUTO_VAR_INIT_ZERO_ENABLER
+# https://github.com/llvm/llvm-project/issues/44842
+KBUILD_CFLAGS	+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+endif
 endif
 
 ifdef CONFIG_DEBUG_INFO
