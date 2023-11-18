@@ -1346,7 +1346,9 @@ static void intr_callback(struct urb *urb)
 			   "Stop submitting intr, status %d\n", status);
 		return;
 	case -EOVERFLOW:
-		netif_info(tp, intr, tp->netdev, "intr status -EOVERFLOW\n");
+		if (net_ratelimit())
+			netif_info(tp, intr, tp->netdev,
+				   "intr status -EOVERFLOW\n");
 		goto resubmit;
 	/* -EPIPE:  should clear the halt */
 	default:
@@ -7461,6 +7463,19 @@ static struct usb_device_id rtl8152_table[] = {
 	/* Nvidia */
 	{REALTEK_USB_DEVICE_INTERFACE_CLASS(VENDOR_ID_NVIDIA,  0x09ff)},
 	{REALTEK_USB_DEVICE_INTERFACE_CLASS_AND_INTERFACE_INFO(VENDOR_ID_NVIDIA,  0x09ff)},
+
+	/* Microsoft */
+    {REALTEK_USB_DEVICE_INTERFACE_CLASS(VENDOR_ID_MICROSOFT,  0x07ab)},
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS_AND_INTERFACE_INFO(VENDOR_ID_MICROSOFT,  0x07ab)},
+    {REALTEK_USB_DEVICE_INTERFACE_CLASS(VENDOR_ID_MICROSOFT,  0x07c6)},
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS_AND_INTERFACE_INFO(VENDOR_ID_MICROSOFT,  0x07c6)},
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS(VENDOR_ID_MICROSOFT,  0x0927)},
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS_AND_INTERFACE_INFO(VENDOR_ID_MICROSOFT,  0x0927)},
+
+	/* Linksys */
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS(VENDOR_ID_LINKSYS,  0x0041)},
+	{REALTEK_USB_DEVICE_INTERFACE_CLASS_AND_INTERFACE_INFO(VENDOR_ID_LINKSYS,  0x0041)},
+
 	{}
 };
 
