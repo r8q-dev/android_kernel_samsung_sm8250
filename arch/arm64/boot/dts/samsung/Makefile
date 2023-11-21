@@ -31,4 +31,4 @@ dts-dirs += r8q
 always          := $(dtb-y)
 subdir-y        := $(dts-dirs)
 
-clean-files := *.dtb *.dtbo
+clean-files := *.dtb *.reverse.dts *.dtbo
