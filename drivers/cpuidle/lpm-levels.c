@@ -1826,6 +1826,15 @@ static int lpm_probe(struct platform_device *pdev)
 
 	set_update_ipi_history_callback(update_ipi_history);
 
+	/* Add lpm_debug to Minidump*/
+	strlcpy(md_entry.name, "KLPMDEBUG", sizeof(md_entry.name));
+	md_entry.virt_addr = (uintptr_t)lpm_debug;
+	md_entry.phys_addr = lpm_debug_phys;
+	md_entry.size = size;
+	md_entry.id = MINIDUMP_DEFAULT_ID;
+	if (msm_minidump_add_region(&md_entry) < 0)
+		pr_info("Failed to add lpm_debug in Minidump\n");
+
 	return 0;
 failed:
 	free_cluster_node(lpm_root_node);

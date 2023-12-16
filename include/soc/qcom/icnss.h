@@ -21,6 +21,10 @@ enum icnss_uevent {
 	ICNSS_UEVENT_HANG_DATA,
 };
 
+enum icnss_device_config {
+	ICNSS_IPA_DISABLED,
+};
+
 struct icnss_uevent_hang_data {
 	void *hang_event_data;
 	uint16_t hang_event_data_len;

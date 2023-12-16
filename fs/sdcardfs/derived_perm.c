@@ -49,7 +49,7 @@ void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 }
 
 /* While renaming, there is a point where we want the path from dentry,
- * but the name from newdentry
+ * but the name from newdentry	
  */
 void get_derived_permission_inode_new(struct dentry *parent,
 		struct inode *inode,

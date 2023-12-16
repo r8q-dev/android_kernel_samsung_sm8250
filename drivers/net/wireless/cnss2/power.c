@@ -4,6 +4,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <soc/qcom/cmd-db.h>
@@ -766,6 +767,9 @@ static int cnss_select_pinctrl_state(struct cnss_plat_data *plat_priv,
 			}
 		}
 	}
+
+	cnss_pr_dbg("%s WLAN_EN GPIO successfully\n",
+		    state ? "Assert" : "De-assert");
 
 	return 0;
 out:
