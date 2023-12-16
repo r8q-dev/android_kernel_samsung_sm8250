@@ -12,7 +12,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/memblock.h>
 #include <linux/completion.h>
-#include <soc/qcom/ramdump.h>
 #include <linux/of_gpio.h>
 
 #include "main.h"
@@ -1968,8 +1967,6 @@ retry:
 
 	ret = cnss_resume_pci_link(pci_priv);
 	if (ret) {
-		cnss_pr_dbg("Value of SW_CNTRL GPIO: %d\n",
-			    cnss_get_gpio_value(plat_priv, sw_ctrl_gpio));
 		cnss_pr_err("Failed to resume PCI link, err = %d\n", ret);
 		if (test_bit(IGNORE_PCI_LINK_FAILURE,
 			     &plat_priv->ctrl_params.quirks)) {
@@ -4402,6 +4399,14 @@ void cnss_pci_clear_dump_info(struct cnss_pci_data *pci_priv)
 
 	plat_priv->ramdump_info_v2.dump_data.nentries = 0;
 	plat_priv->ramdump_info_v2.dump_data_valid = false;
+}
+
+void cnss_pci_device_crashed(struct cnss_pci_data *pci_priv)
+{
+	if (!pci_priv)
+		return;
+
+	cnss_device_crashed(&pci_priv->pci_dev->dev);
 }
 
 static int cnss_mhi_pm_runtime_get(struct mhi_controller *mhi_ctrl, void *priv)

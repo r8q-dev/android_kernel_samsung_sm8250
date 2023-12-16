@@ -71,6 +71,7 @@ struct f_hidg {
 	wait_queue_head_t		write_queue;
 	struct usb_request		*req;
 
+    int				minor;
 	struct device			dev;
 	struct cdev			cdev;
 	struct usb_function		func;
@@ -303,7 +304,7 @@ static ssize_t f_hidg_intout_read(struct file *file, char __user *buffer,
 
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 
-#define READ_COND (!list_empty(&hidg->completed_out_req) || !hidg->bound)
+#define READ_COND_INTOUT (!list_empty(&hidg->completed_out_req) || !hidg->bound)
 
 	/* wait for at least one buffer to complete */
 	while (!READ_COND_INTOUT) {
@@ -733,7 +734,7 @@ static int hidg_setup(struct usb_function *f,
 		  | HID_REQ_SET_REPORT):
 		VDBG(cdev, "set_report | wLength=%d\n", ctrl->wLength);
 		req->context = hidg;
-		req->complete = hidg_set_report_complete;
+		req->complete = hidg_ssreport_complete;
 		goto respond;
 		break;
 
