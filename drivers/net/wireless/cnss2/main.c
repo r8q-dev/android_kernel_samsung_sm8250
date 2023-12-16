@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2016-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved. */
 
 #include <linux/delay.h>
 #include <linux/jiffies.h>
@@ -635,10 +635,6 @@ unsigned int cnss_get_timeout(struct cnss_plat_data *plat_priv,
 		return (qmi_timeout << 2);
 	case CNSS_TIMEOUT_WLAN_WATCHDOG:
 		return ((qmi_timeout << 1) + WLAN_WD_TIMEOUT_MS);
-	case CNSS_TIMEOUT_RDDM:
-		return CNSS_RDDM_TIMEOUT_MS;
-	case CNSS_TIMEOUT_RECOVERY:
-		return RECOVERY_TIMEOUT;
 	default:
 		return qmi_timeout;
 	}
@@ -755,14 +751,6 @@ int cnss_idle_restart(struct device *dev)
 	timeout = cnss_get_timeout(plat_priv, CNSS_TIMEOUT_IDLE_RESTART);
 	ret = wait_for_completion_timeout(&plat_priv->power_up_complete,
 					  msecs_to_jiffies(timeout));
-	if (plat_priv->power_up_error) {
-		ret = plat_priv->power_up_error;
-		clear_bit(CNSS_DRIVER_IDLE_RESTART, &plat_priv->driver_state);
-		cnss_pr_dbg("Power up error:%d, exiting\n",
-			    plat_priv->power_up_error);
-		goto out;
-	}
-
 	if (!ret) {
 		cnss_pr_err("Timeout (%ums) waiting for idle restart to complete\n",
 			    timeout);
@@ -789,7 +777,6 @@ EXPORT_SYMBOL(cnss_idle_restart);
 int cnss_idle_shutdown(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-	unsigned int timeout;
 	int ret;
 
 	if (!plat_priv) {
@@ -809,12 +796,11 @@ int cnss_idle_shutdown(struct device *dev)
 		goto skip_wait;
 
 	reinit_completion(&plat_priv->recovery_complete);
-	timeout = cnss_get_timeout(plat_priv, CNSS_TIMEOUT_RECOVERY);
 	ret = wait_for_completion_timeout(&plat_priv->recovery_complete,
-					  msecs_to_jiffies(timeout));
+					  msecs_to_jiffies(RECOVERY_TIMEOUT));
 	if (!ret) {
 		cnss_pr_err("Timeout (%ums) waiting for recovery to complete\n",
-			    timeout);
+			    RECOVERY_TIMEOUT);
 		CNSS_ASSERT(0);
 	}
 
@@ -1071,7 +1057,6 @@ static void cnss_recovery_work_handler(struct work_struct *work)
 		panic("subsys-restart: Resetting the SoC wlan crashed\n");
 
 	cnss_bus_dev_shutdown(plat_priv);
-	cnss_bus_dev_ramdump(plat_priv);
 	msleep(RECOVERY_DELAY_MS);
 	cnss_bus_dev_powerup(plat_priv);
 }
@@ -1123,6 +1108,9 @@ static const char *cnss_recovery_reason_to_str(enum cnss_recovery_reason reason)
 static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 			    enum cnss_recovery_reason reason)
 {
+	struct cnss_subsys_info *subsys_info =
+		&plat_priv->subsys_info;
+	cnss_pr_err("%s\n", ver_info);
 	plat_priv->recovery_count++;
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
@@ -1356,7 +1344,6 @@ EXPORT_SYMBOL(cnss_force_fw_assert);
 int cnss_force_collect_rddm(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-	unsigned int timeout;
 	int ret = 0;
 
 	if (!plat_priv) {
@@ -1392,12 +1379,12 @@ int cnss_force_collect_rddm(struct device *dev)
 		return ret;
 
 	reinit_completion(&plat_priv->rddm_complete);
-	timeout = cnss_get_timeout(plat_priv, CNSS_TIMEOUT_RDDM);
-	ret = wait_for_completion_timeout(&plat_priv->rddm_complete,
-					  msecs_to_jiffies(timeout));
+	ret = wait_for_completion_timeout
+		(&plat_priv->rddm_complete,
+		 msecs_to_jiffies(CNSS_RDDM_TIMEOUT_MS));
 	if (!ret) {
 		cnss_pr_err("Timeout (%ums) waiting for RDDM to complete\n",
-			    timeout);
+			    CNSS_RDDM_TIMEOUT_MS);
 		ret = -ETIMEDOUT;
 	}
 
@@ -1833,69 +1820,6 @@ static void cnss_destroy_ramdump_device(struct cnss_plat_data *plat_priv,
 {
 	destroy_ramdump_device(ramdump_dev);
 }
-
-int cnss_do_ramdump(struct cnss_plat_data *plat_priv)
-{
-	struct cnss_ramdump_info *ramdump_info = &plat_priv->ramdump_info;
-	struct ramdump_segment segment;
-
-	memset(&segment, 0, sizeof(segment));
-	segment.v_address = ramdump_info->ramdump_va;
-	segment.size = ramdump_info->ramdump_size;
-
-	return do_ramdump(ramdump_info->ramdump_dev, &segment, 1);
-}
-
-int cnss_do_elf_ramdump(struct cnss_plat_data *plat_priv)
-{
-	struct cnss_ramdump_info_v2 *info_v2 = &plat_priv->ramdump_info_v2;
-	struct cnss_dump_data *dump_data = &info_v2->dump_data;
-	struct cnss_dump_seg *dump_seg = info_v2->dump_data_vaddr;
-	struct ramdump_segment *ramdump_segs, *s;
-	struct cnss_dump_meta_info meta_info = {0};
-	int i, ret = 0;
-
-	ramdump_segs = kcalloc(dump_data->nentries + 1,
-			       sizeof(*ramdump_segs),
-			       GFP_KERNEL);
-	if (!ramdump_segs)
-		return -ENOMEM;
-
-	s = ramdump_segs + 1;
-	for (i = 0; i < dump_data->nentries; i++) {
-		if (dump_seg->type >= CNSS_FW_DUMP_TYPE_MAX) {
-			cnss_pr_err("Unsupported dump type: %d",
-				    dump_seg->type);
-			continue;
-		}
-
-		if (meta_info.entry[dump_seg->type].entry_start == 0) {
-			meta_info.entry[dump_seg->type].type = dump_seg->type;
-			meta_info.entry[dump_seg->type].entry_start = i + 1;
-		}
-		meta_info.entry[dump_seg->type].entry_num++;
-
-		s->address = dump_seg->address;
-		s->v_address = dump_seg->v_address;
-		s->size = dump_seg->size;
-		s++;
-		dump_seg++;
-	}
-
-	meta_info.magic = CNSS_RAMDUMP_MAGIC;
-	meta_info.version = CNSS_RAMDUMP_VERSION;
-	meta_info.chipset = plat_priv->device_id;
-	meta_info.total_entries = CNSS_FW_DUMP_TYPE_MAX;
-
-	ramdump_segs->v_address = &meta_info;
-	ramdump_segs->size = sizeof(meta_info);
-
-	ret = do_elf_ramdump(info_v2->ramdump_dev, ramdump_segs,
-			     dump_data->nentries + 1);
-	kfree(ramdump_segs);
-
-	return ret;
-}
 #else
 static int cnss_panic_handler(struct notifier_block *nb, unsigned long action,
 			      void *data)
@@ -1945,86 +1869,6 @@ static void cnss_destroy_ramdump_device(struct cnss_plat_data *plat_priv,
 					void *ramdump_dev)
 {
 }
-
-#ifdef CONFIG_SUBSYSTEM_RAMDUMP
-int cnss_do_ramdump(struct cnss_plat_data *plat_priv)
-{
-	struct cnss_ramdump_info *ramdump_info = &plat_priv->ramdump_info;
-	struct qcom_dump_segment segment;
-	struct list_head head;
-
-	INIT_LIST_HEAD(&head);
-	memset(&segment, 0, sizeof(segment));
-	segment.va = ramdump_info->ramdump_va;
-	segment.size = ramdump_info->ramdump_size;
-	list_add(&segment.node, &head);
-
-	return do_dump(&head, ramdump_info->ramdump_dev);
-}
-
-int cnss_do_elf_ramdump(struct cnss_plat_data *plat_priv)
-{
-	struct cnss_ramdump_info_v2 *info_v2 = &plat_priv->ramdump_info_v2;
-	struct cnss_dump_data *dump_data = &info_v2->dump_data;
-	struct cnss_dump_seg *dump_seg = info_v2->dump_data_vaddr;
-	struct qcom_dump_segment *seg;
-	struct cnss_dump_meta_info meta_info = {0};
-	struct list_head head;
-	int i, ret = 0;
-
-	INIT_LIST_HEAD(&head);
-	for (i = 0; i < dump_data->nentries; i++) {
-		if (dump_seg->type >= CNSS_FW_DUMP_TYPE_MAX) {
-			cnss_pr_err("Unsupported dump type: %d",
-				    dump_seg->type);
-			continue;
-		}
-
-		if (meta_info.entry[dump_seg->type].entry_start == 0) {
-			meta_info.entry[dump_seg->type].type = dump_seg->type;
-			meta_info.entry[dump_seg->type].entry_start = i + 1;
-		}
-		meta_info.entry[dump_seg->type].entry_num++;
-
-		seg = kcalloc(1, sizeof(*seg), GFP_KERNEL);
-		seg->da = dump_seg->address;
-		seg->va = dump_seg->v_address;
-		seg->size = dump_seg->size;
-		list_add_tail(&seg->node, &head);
-		dump_seg++;
-	}
-
-	meta_info.magic = CNSS_RAMDUMP_MAGIC;
-	meta_info.version = CNSS_RAMDUMP_VERSION;
-	meta_info.chipset = plat_priv->device_id;
-	meta_info.total_entries = CNSS_FW_DUMP_TYPE_MAX;
-
-	seg = kcalloc(1, sizeof(*seg), GFP_KERNEL);
-	seg->va = &meta_info;
-	seg->size = sizeof(meta_info);
-	list_add(&seg->node, &head);
-
-	ret = do_elf_dump(&head, info_v2->ramdump_dev);
-
-	while (!list_empty(&head)) {
-		seg = list_first_entry(&head, struct qcom_dump_segment, node);
-		list_del(&seg->node);
-		kfree(seg);
-	}
-
-	return ret;
-}
-#else
-int cnss_do_ramdump(struct cnss_plat_data *plat_priv)
-{
-	return 0;
-}
-
-int cnss_do_elf_ramdump(struct cnss_plat_data *plat_priv)
-{
-	return 0;
-}
-#endif /* CONFIG_SUBSYSTEM_RAMDUMP */
 #endif /* CONFIG_MSM_SUBSYSTEM_RESTART */
 
 static int cnss_init_dump_entry(struct cnss_plat_data *plat_priv)
@@ -2419,13 +2263,13 @@ static ssize_t fs_ready_store(struct device *dev,
 	cnss_pr_dbg("File system is ready, fs_ready is %d, count is %zu\n",
 		    fs_ready, count);
 
-	if (!plat_priv) {
-		cnss_pr_err("plat_priv is NULL!\n");
+	if (test_bit(QMI_BYPASS, &plat_priv->ctrl_params.quirks)) {
+		cnss_pr_dbg("QMI is bypassed.\n");
 		return count;
 	}
 
-	if (test_bit(QMI_BYPASS, &plat_priv->ctrl_params.quirks)) {
-		cnss_pr_dbg("QMI is bypassed.\n");
+	if (!plat_priv) {
+		cnss_pr_err("plat_priv is NULL!\n");
 		return count;
 	}
 

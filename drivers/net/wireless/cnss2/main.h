@@ -17,7 +17,6 @@
 #include <soc/qcom/subsystem_restart.h>
 #endif
 
-
 #include "qmi.h"
 
 #define MAX_NO_OF_MAC_ADDR		4
@@ -336,8 +335,6 @@ enum cnss_timeout_type {
 	CNSS_TIMEOUT_IDLE_RESTART,
 	CNSS_TIMEOUT_CALIBRATION,
 	CNSS_TIMEOUT_WLAN_WATCHDOG,
-	CNSS_TIMEOUT_RDDM,
-	CNSS_TIMEOUT_RECOVERY,
 };
 
 struct cnss_plat_data {
@@ -418,7 +415,6 @@ struct cnss_plat_data {
 	struct kobject *wifi_kobj;
 	u8 fw_pcie_gen_switch;
 	u8 pcie_gen_speed;
-	int power_up_error;
 };
 
 #ifdef CONFIG_ARCH_QCOM
@@ -465,8 +461,6 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv);
 void cnss_unregister_subsys(struct cnss_plat_data *plat_priv);
 int cnss_register_ramdump(struct cnss_plat_data *plat_priv);
 void cnss_unregister_ramdump(struct cnss_plat_data *plat_priv);
-int cnss_do_ramdump(struct cnss_plat_data *plat_priv);
-int cnss_do_elf_ramdump(struct cnss_plat_data *plat_priv);
 void cnss_set_pin_connect_status(struct cnss_plat_data *plat_priv);
 int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);
@@ -482,5 +476,4 @@ unsigned int cnss_get_timeout(struct cnss_plat_data *plat_priv,
 			      enum cnss_timeout_type);
 int cnss_pci_update_qtime_sync_period(struct device *dev,
 				      unsigned int qtime_sync_period);
-
 #endif /* _CNSS_MAIN_H */
