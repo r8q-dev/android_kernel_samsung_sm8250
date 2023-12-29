@@ -1910,11 +1910,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	if (IS_ERR(new_mnt))
 		return ERR_CAST(new_mnt);
 
-#ifdef CONFIG_KDP_NS
-	return new_mnt->mnt;
-#else
 	return &new_mnt->mnt;
-#endif
 }
 EXPORT_SYMBOL_GPL(clone_private_mount);
 
@@ -2236,12 +2232,7 @@ static bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 	list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 		if (!is_subdir(child->mnt_mountpoint, dentry))
 			continue;
-
-#ifdef CONFIG_KDP_NS
-		if (child->mnt->mnt_flags & MNT_LOCKED)
-#else
 		if (child->mnt.mnt_flags & MNT_LOCKED)
-#endif
 			return true;
 	}
 	return false;

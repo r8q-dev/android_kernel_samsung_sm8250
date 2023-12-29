@@ -266,11 +266,7 @@ static int propagate_one(struct mount *m)
 	child = copy_tree(last_source, last_source->mnt.mnt_root, type);
 	if (IS_ERR(child))
 		return PTR_ERR(child);
-#ifdef CONFIG_KDP_NS
-	rkp_reset_mnt_flags(child->mnt,MNT_LOCKED);
-#else
 	child->mnt.mnt_flags &= ~MNT_LOCKED;
-#endif
 	mnt_set_mountpoint(m, mp, child);
 	last_dest = m;
 	last_source = child;

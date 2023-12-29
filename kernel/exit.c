@@ -772,10 +772,6 @@ void __noreturn do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 
-#ifdef CONFIG_SECURITY_DEFEX
-	task_defex_zero_creds(current);
-#endif
-
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
 
